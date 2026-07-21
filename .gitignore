@@ -1,0 +1,32 @@
+# 환경변수 (API 키 등)
+.env
+
+# 인증 토큰 및 보안 파일
+credentials.json
+token.pickle
+token.pickle.old
+token.pickle_.gstmp
+token_base64.txt
+token*
+auth_url.txt
+clean_url.txt
+extracted.txt
+extracted_logs.txt
+full_logs_today.txt
+news_output.txt
+topics_output.txt
+url.txt
+
+# requirements.txt 포함 예외
+!requirements.txt
+
+# 로그
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 백업
+backup_*/
+backups/
