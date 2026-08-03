@@ -91,7 +91,7 @@ def run_auto_blog(request=None):
         # 모듈 초기화
         rss_collector = RSSCollector(timeout=config["settings"]["request_timeout"])
         content_scraper = ContentScraper(timeout=config["settings"]["request_timeout"])
-        blog_writer = BlogWriter(gemini_api_key, config["gemini"]["model"])
+        blog_writer = BlogWriter()
         blogger_poster = BloggerPoster(blog_id=blogger_blog_id, gcs_bucket=effective_gcs_bucket)
         
         # 1. RSS 수집
@@ -368,9 +368,9 @@ def run_auto_blog(request=None):
                 # [중복 방지] 블로그에 이미 유사한 제목의 글이 있는지 확인
                 is_duplicate = False
                 for rp in recent_posts:
-                    similarity = SequenceMatcher(None, blog_post["blog_title"], rp['title']).ratio()
+                    similarity = SequenceMatcher(None, blog_post["title"], rp['title']).ratio()
                     if similarity > 0.6:
-                        logger.warning(f"⚠️ 중복 감지! 유사도 {similarity:.1%}: '{blog_post['blog_title'][:30]}' ↔ '{rp['title'][:30]}'")
+                        logger.warning(f"⚠️ 중복 감지! 유사도 {similarity:.1%}: '{blog_post['title'][:30]}' ↔ '{rp['title'][:30]}'")
                         is_duplicate = True
                         break
                 
@@ -391,8 +391,8 @@ def run_auto_blog(request=None):
                         time.sleep(retry_delay)
                     
                     post_url = blogger_poster.post(
-                        title=blog_post["blog_title"],
-                        content=blog_post["blog_content"],
+                        title=blog_post["title"],
+                        content=blog_post["content"],
                         labels=all_labels,
                         is_draft=False,
                         meta_description=blog_post.get("meta_description", ""),  # [SEO-3]
@@ -433,7 +433,7 @@ def run_auto_blog(request=None):
                         
                         # [SEO-5] 새로 올린 글도 내부 링크 후보에 추가
                         recent_posts.insert(0, {
-                            'title': blog_post["blog_title"],
+                            'title': blog_post["title"],
                             'url': post_url
                         })
                         if len(recent_posts) > 5:

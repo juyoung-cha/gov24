@@ -150,15 +150,24 @@ SEO 가이드:
                 dept_name = dept or "정부 보도자료"
                 
                 source_box = f"""
-<div style="margin-top: 40px; padding: 20px; background-color: #f1f8ff; border-radius: 10px; border: 1px solid #c8e1ff;">
-  <p style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">
-    💡 좀 더 자세한 내용은 <a href="{source_url}" style="color: #0366d6; text-decoration: underline;" target="_blank">"여기"</a>를 눌러 원문을 볼 수 있습니다.
+<div style="margin-top: 50px; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="display: flex; align-items: center; margin-bottom: 16px;">
+    <span style="font-size: 24px; margin-right: 12px;">📢</span>
+    <h4 style="margin: 0; font-size: 18px; color: #1e293b; font-weight: 700; word-break: keep-all;">공식 보도자료 및 상세 정보 안내</h4>
+  </div>
+  <p style="font-size: 15px; color: #475569; line-height: 1.6; margin: 0 0 20px 0; word-break: keep-all;">
+    이 정보와 관련된 공식 원문 보도자료나 더 상세한 세부 지침이 필요하신 분들은 아래 공식 원문 링크를 통해 바로 확인하실 수 있습니다.
   </p>
-  <hr style="border: 0; border-top: 1px solid #c8e1ff; margin-bottom: 15px;"/>
-  <div style="font-size: 14px; color: #586069;">
-    <p style="margin-bottom: 5px;"><strong>출처 정보:</strong> {dept_name}</p>
-    <p style="margin-bottom: 5px;">본 글은 정부 공개 자료를 바탕으로 재구성 및 분석한 글입니다.</p>
-    <p style="margin-bottom: 0;">저작권은 원 저작권자에게 있으며, 상업적 이용 시 출처를 명시해주세요.</p>
+  <div style="margin-bottom: 24px;">
+    <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(37,99,235,0.2); transition: all 0.2s ease-in-out; text-align: center;">
+      📄 공식 사이트 원문 보러가기 →
+    </a>
+  </div>
+  <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 0 0 16px 0;"/>
+  <div style="font-size: 13px; color: #64748b; line-height: 1.5;">
+    <p style="margin: 0 0 6px 0;"><strong>제공 부처/기관:</strong> {dept_name}</p>
+    <p style="margin: 0 0 6px 0;">※ 본 콘텐츠는 정부/지자체 공개 자료를 바탕으로 가공 및 분석하여 작성된 유용한 정책 정보입니다.</p>
+    <p style="margin: 0;">※ 정보의 유효성은 발행일 기준이며 최신 변경 사항은 공식 출처를 참고해 주시기 바랍니다.</p>
   </div>
 </div>
 """
@@ -200,6 +209,12 @@ SEO 가이드:
         if tags_match:
             raw_tags = tags_match.group(1).strip()
             tags = [t.strip().lstrip('#') for t in raw_tags.split() if t.strip()]
+            # HTML 조각 및 무효 태그 필터링
+            tags = [
+                re.sub(r'<[^>]+>', '', t).strip()
+                for t in tags
+            ]
+            tags = [t for t in tags if len(t) >= 2 and '<' not in t and '>' not in t]
 
         if content:
             content = re.sub(r"^```html\s*", "", content, flags=re.IGNORECASE)

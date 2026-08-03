@@ -226,14 +226,27 @@ class BloggerPoster:
                 'content': enhanced_content
             }
             
-            # 라벨(태그) 추가 (Blogger 길이 제한 40자 준수)
+            # 라벨(태그) 추가 (Blogger 길이 제한 40자 준수 + HTML 조각 방어)
             if labels:
+                import re as _re
                 trimmed_labels = []
                 for label in labels:
+                    # HTML 태그 제거
+                    label = _re.sub(r'<[^>]+>', '', label).strip()
+                    # 유효성 검사: 2글자 이상, HTML 특수문자 없음
+                    if len(label) < 2 or '<' in label or '>' in label:
+                        continue
                     if len(label) > 40:
                         label = label[:37] + "..."
                     trimmed_labels.append(label)
-                post_data['labels'] = trimmed_labels
+                # 중복 제거 (순서 유지)
+                seen_labels = set()
+                unique_labels = []
+                for l in trimmed_labels:
+                    if l not in seen_labels:
+                        seen_labels.add(l)
+                        unique_labels.append(l)
+                post_data['labels'] = unique_labels[:20]  # Blogger 최대 20개
             
             # 포스팅
             if is_draft:

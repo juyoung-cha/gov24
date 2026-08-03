@@ -1,8 +1,7 @@
 {
     "rss_feeds": {
-        "기획재정부": "https://www.korea.kr/rss/dept_moef.xml",
+        "고용노동부": "https://www.moel.go.kr/rss/policy.do",
         "보건복지부": "https://www.mohw.go.kr/rss/board.es?mid=a10501010000&bid=0003&cg_code=C01",
-        "고용노동부": "https://www.korea.kr/rss/dept_moel.xml",
         "seoul_policy": "https://www.seoul.go.kr/seoul/mediahub.do?schAgeVals=&schTargetVals=&schBunyaVals=&schType=TAG&schValue="
     },
     "gemini": {
