@@ -478,7 +478,8 @@ def run_auto_blog(request=None):
     
     except Exception as e:
         logger.error(f"프로그램 실행 오류: {str(e)}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+        import sys
+        sys.exit(1)
 
 
 if __name__ == "__main__":
