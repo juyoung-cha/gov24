@@ -205,6 +205,13 @@ class BloggerPoster:
         try:
             logger.info(f"Blogger 포스팅 시작: {title[:30]}...")
             
+            # HTML 본문 살균 필터 (Blogger API 400 badRequest 에러 원천 방어)
+            import re as _re
+            # 쌩 & 기호를 &amp;로 안전하게 치환 (HTML Entity 중복 치환 방지)
+            content = _re.sub(r'&(?![a-zA-Z0-9#]+;)', '&amp;', content)
+            # 흔한 태그 오타 보정
+            content = content.replace('<stong>', '<strong>').replace('</stong>', '</strong>')
+
             # [SEO] meta description을 본문 상단에 삽입 (검색엔진 스니펫용)
             seo_header = ""
             if meta_description:
