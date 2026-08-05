@@ -212,6 +212,15 @@ class BloggerPoster:
             # 흔한 태그 오타 보정
             content = content.replace('<stong>', '<strong>').replace('</stong>', '</strong>')
 
+            # BeautifulSoup을 이용한 HTML 태그 밸런싱 및 강제 교정 (닫히지 않은 태그 복원)
+            try:
+                from bs4 import BeautifulSoup as _BS
+                _soup = _BS(content, 'html.parser')
+                content = str(_soup)
+                logger.info("BeautifulSoup을 통한 HTML 태그 자동 밸런싱 완료")
+            except Exception as bs_err:
+                logger.warning(f"BeautifulSoup HTML 밸런싱 실패 (계속 진행): {bs_err}")
+
             # [SEO] meta description을 본문 상단에 삽입 (검색엔진 스니펫용)
             seo_header = ""
             if meta_description:
