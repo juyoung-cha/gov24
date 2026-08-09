@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write  # 토큰 만료 시 자동 Issue 생성용
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -34,8 +35,15 @@ jobs:
             echo "$TOKEN_PICKLE_BASE64" | base64 -d > token.pickle
             echo "token.pickle restored successfully."
           else
-            echo "Warning: TOKEN_PICKLE_BASE64 secret is not set!"
+            echo "::error::TOKEN_PICKLE_BASE64 secret is not set!"
+            exit 1
           fi
+
+      - name: Pre-flight Token Health Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python check_token_health.py
 
       - name: Run Auto Blog Posting
         env:
