@@ -223,20 +223,36 @@ def run_auto_blog(request=None):
         except Exception as e:
             logger.warning(f"⚠️ 최근 포스트 조회 실패 (계속 진행): {e}")
         
-        # [NEW] 오늘 KST 기준으로 이미 블로그에 발행된 포스트 수 파악하여 하루 제한 보장
+        # [NEW] 최근 24시간 동안 이미 블로그에 발행된 포스트 수 파악하여 하루 제한 보장
         kst = timezone(timedelta(hours=9))
-        today_kst_str = datetime.now(kst).strftime("%Y-%m-%d")
+        now_kst = datetime.now(kst)
         
         today_published_count = 0
         for rp in recent_items:
-            pub_time_str = rp.get('published', '')
-            if pub_time_str.startswith(today_kst_str):
-                today_published_count += 1
+            pub_time_str = rp.get('published', '') # 예: 2026-08-30T13:20:00+09:00 형식
+            if pub_time_str:
+                try:
+                    # ISO 8601 형식의 타임존 포함 시간을 파싱하여 KST와 비교
+                    # fromisoformat은 3.11+ 또는 뒤쪽 타임존 처리를 지원하므로 안전하게 처리
+                    from dateutil.parser import parse as parse_date
+                    pub_dt = parse_date(pub_time_str)
+                    
+                    # 두 시간 모두 타임존 정보가 있으므로 직접 비교 가능
+                    time_diff = now_kst - pub_dt
+                    if time_diff.total_seconds() < 24 * 3600:
+                        today_published_count += 1
+                        logger.info(f"  최근 24시간 이내 발행 확인: {rp.get('title', '')[:30]}")
+                except Exception as ex:
+                    logger.warning(f"  발행일시 파싱 실패 ({pub_time_str}): {ex}")
+                    # 파싱 실패 시 예외 방어용으로 날짜 문자열 앞부분 비교 백업
+                    today_kst_str = now_kst.strftime("%Y-%m-%d")
+                    if pub_time_str.startswith(today_kst_str):
+                        today_published_count += 1
                 
         daily_limit = config["settings"].get("max_posts_per_run", 2)
         remaining_slots = max(0, daily_limit - today_published_count)
-        logger.info(f"오늘({today_kst_str}) 이미 게시된 글: {today_published_count}개 / 하루 제한: {daily_limit}개")
-        logger.info(f"오늘 추가로 발행 가능한 글 슬롯: {remaining_slots}개")
+        logger.info(f"최근 24시간 내 이미 게시된 글: {today_published_count}개 / 하루 제한: {daily_limit}개")
+        logger.info(f"추가로 발행 가능한 글 슬롯: {remaining_slots}개")
         
         if remaining_slots <= 0:
             logger.info("오늘 허용된 포스팅 한도(2개)를 이미 채웠습니다. 포스팅 작업을 진행하지 않고 조기 종료합니다.")
