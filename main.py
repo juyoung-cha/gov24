@@ -363,11 +363,6 @@ def run_auto_blog(request=None):
                         except Exception as save_err:
                             logger.warning(f"⚠️ seen.json 즉시 저장 실패 (최종 저장에서 재시도): {save_err}")
                         
-                        # [NEW] 오늘 남은 발행 슬롯을 모두 채웠는지 체크
-                        if posted_count >= remaining_slots:
-                            logger.info(f"오늘 허용된 추가 발행 슬롯({remaining_slots}개)을 모두 채웠습니다. 남은 대기열 처리를 중단합니다.")
-                            break
-                        
                         # [SEO-4] Sitemap ping — Google에 새 콘텐츠 알림
                         try:
                             import requests
@@ -396,8 +391,13 @@ def run_auto_blog(request=None):
                 if blogger_quota_exhausted:
                     break
                 
-                # [SEO-FIX] 포스팅 간 랜덤 대기 (3~8분) — 자연스러운 게시 패턴으로 스팸 판정 회피
-                if idx < len(new_items):  # 마지막 항목이 아니면
+                # [NEW] 오늘 남은 발행 슬롯을 모두 채웠으면 바깥 루프 즉시 종료
+                if posted_count >= remaining_slots:
+                    logger.info(f"🎉 오늘 허용된 추가 발행 슬롯({remaining_slots}개)을 모두 채웠습니다. 작업을 완료합니다.")
+                    break
+                
+                # [SEO-FIX] 다음 포스팅이 아직 남아있을 때만 랜덤 대기 (3~8분)
+                if idx < len(new_items) and posted_count < remaining_slots:
                     import random
                     wait_seconds = random.randint(180, 480)  # 3분~8분
                     logger.info(f"⏳ 다음 포스팅까지 {wait_seconds//60}분 {wait_seconds%60}초 대기...")
