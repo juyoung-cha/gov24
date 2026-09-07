@@ -34,6 +34,6 @@
         "request_timeout": 15,
         "post_interval_hours": 24,
         "max_posts_per_run": 2,
-        "min_relevance_score": 7
+        "min_relevance_score": 8
     }
 }

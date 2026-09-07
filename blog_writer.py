@@ -19,66 +19,78 @@ class BlogWriter:
             # fallback to alternative keys if available
             api_key = self.config.get("api_keys", {}).get("gemini_api_key")
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        model_name = self.config.get("gemini", {}).get("model", "gemini-2.5-flash")
+        self.model = genai.GenerativeModel(model_name)
         
     def _create_prompt(self, title: str, content: str, dept: str, images: list = None, recent_posts: list = None) -> str:
-        """Gemini에게 전달할 프롬프트 생성 (5월 인기 공감 스토리텔링 템플릿 강조)"""
+        """Gemini에게 전달할 고클릭률 및 고품격 공감 스토리텔링 프롬프트"""
         
-        max_content_length = 6000
+        max_content_length = 6500
         if len(content) > max_content_length:
             content = content[:max_content_length] + "..."
         
-        image_prompt = "원문에 이미지가 없으므로, 텍스트와 표(table)만으로 정보를 완벽하게 시각화하세요."
+        image_prompt = "원문에 이미지가 없으므로, 텍스트와 시각적 표(table), 인용 박스만으로 정보를 완벽하게 구조화하세요."
         if images:
             image_prompt = "\n**이미지 활용 지침:**\n"
             for i, img_url in enumerate(images[:3], 1):
                 image_prompt += f"- 이미지{i} URL: {img_url}\n"
-            image_prompt += "위 이미지들을 본문의 흐름에 맞춰 <img src='이미지URL' style='max-width:100%; height:auto; margin:25px 0; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);'> 태그로 삽입하세요.\n"
+            image_prompt += "위 이미지들을 본문의 흐름에 맞춰 <img src='이미지URL' style='max-width:100%; height:auto; margin:25px 0; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display:block;'> 태그로 삽입하세요.\n"
 
         internal_link_prompt = ""
         if recent_posts:
-            internal_link_prompt = "\n**내부 링크 삽입 지침:**\n아래 최근 글 중 이번 주제와 연관된 글이 있다면, 본문 중간에 자연스럽게 삽입하세요.\n"
+            internal_link_prompt = "\n**내부 추천 글 링크 지침:**\n아래 최근 글 중 이번 주제와 연관된 글이 있다면, 본문 중반에 자연스럽게 추천 링크를 1~2개 삽입하세요.\n"
             for rp in recent_posts[:5]:
                 internal_link_prompt += f"- [{rp['title']}]({rp['url']})\n"
-            internal_link_prompt += "형식: <p style='background:#f9f9f9; padding:15px; border-left:5px solid #007bff;'><a href='URL' style='text-decoration:none; color:#333; font-weight:bold;'>📌 {rp['title']} 바로가기</a></p>\n"
+            internal_link_prompt += "형식: <p style='background:#f1f5f9; padding:16px 20px; border-left:5px solid #2563eb; border-radius:6px; margin:25px 0;'><a href='URL' style='text-decoration:none; color:#1e293b; font-weight:700; font-size:15px;'>📌 함께 읽으면 도움되는 정책: {rp['title']} 바로가기 →</a></p>\n"
 
         prompt = f"""
-당신은 대한민국 최고의 정책 분석가이자, 20년 경력의 베테랑 IT/생활 칼럼니스트입니다.
-독자의 마음을 읽고 깊은 공감과 실질적인 생활 혜택을 주는 독창적인 고품질 콘텐츠를 작성해야 합니다.
+당신은 대한민국 최고의 정책 저널리스트이자 20년 경력의 베테랑 칼럼니스트입니다.
+포털 검색자(직장인, 주부, 청년, 시니어 등)가 제목을 보자마자 클릭하고 끝까지 읽게 만드는 '최고급 생활 밀착형 꿀팁 분석글'을 작성하세요.
 
-[페르소나 및 톤앤매너 - 5월 베스트 스타일]
-- 페르소나: 50대 중반의 지혜롭고 친근한 20년 차 칼럼니스트. 독자를 아끼는 따뜻한 '~입니다' 체 사용.
-- 공감 서두: 독자의 현실적인 일상 고민("요즘 물가 상승으로 장보기가 무섭죠?", "주말 나들이 장소 고민 많으셨죠?", "대중교통비/생활비 절약 비법이 궁금하신가요?")으로 매력적으로 시작하세요.
-- 제목 지침 (중요): 훈계조(예: "아직도 빨리빨리 외치시나요?")나 딱딱한 행정 공고 제목은 절대 금지합니다. 독자가 보자마자 클릭하고 싶은 실용 혜택/생활 꿀팁 중심 질문형 제목으로 만드세요. (예: '모르면 나만 손해! ~ 혜택 총정리', '월 5만원 절약하는 숨은 비법 대공개')
+[핵심 목표: 고클릭률 & 구글 애드센스 E-E-A-T 완벽 통과]
+1. 제목 원칙 (극도로 중요):
+   - 딱딱한 행정 보도자료 제목, 단순 공고형 제목, 훈계조는 절대 금지!
+   - 사람들의 호기심과 실질적 혜택을 자극하는 질문형/숫자형/공감형 헤드라인을 만드세요.
+   - 예시 스타일: 
+     * '월 최대 50만원 지원? 놓치면 나만 손해 보는 2026 OO 지원금 완벽 정리!'
+     * '전세금 걱정 끝! 서울시 OO 아파트 20년 내 집처럼 사는 신청 비법 대공개'
+     * '교통비 절반으로 줄이는 숨겨진 꿀팁! OO카드 200% 활용 가이드'
 
-[필수 구성 요소]
-1. [따뜻한 인사 및 공감 서두]: 일상 에피소드와 팩트 위주의 3줄 요약.
-2. [실생활 Q&A 꿀팁]: 독자가 가장 궁금해할 질문 3개 이상을 <h3> 및 <blockquote> 인사이트 태그를 활용해 전문적으로 풀어내기.
-3. [자격 요건 및 혜택 표]: 표(table)를 활용해 한눈에 정리.
-4. [놓치면 후회할 팁]: 담당자도 안 알려주는 신청 성공률 높이는 비법.
-5. [마무리]: 독자들의 삶을 응원하는 따뜻한 메시지.
+2. 페르소나 및 문체:
+   - 20년 경력의 따뜻하고 통찰력 있는 시니어 칼럼니스트 (친절하고 신뢰감 넘치는 '~입니다', '~하시죠?' 체).
+   - 독자의 현실적인 고민(물가, 주거비, 육아, 자녀 교육, 재취업, 노후, 세금)을 짚어주며 깊은 공감 형성.
 
-SEO 가이드:
-- 분량: 반드시 3,000자 이상의 장문을 작성하세요. (정보의 깊이가 승인의 핵심입니다.)
-- HTML 규칙: ```html 과 같은 코드 블록으로 본문을 감싸지 마세요. 순수 HTML 시맨틱 태그(article, section, blockquote, table)만 사용하세요.
+3. 필수 본문 구조 (3,000자 이상의 깊이 있는 고품질 장문):
+   ① [따뜻한 인사 및 일상 공감 서두]: 최근 독자들의 현실 고민 공감 + 이번 정책이 주는 핵심 혜택 3줄 요약
+   ② [실생활 Q&A 꿀팁 3문 3답]: 독자가 가장 궁금해할 핵심 질문 3개를 <h3> 및 <blockquote> 박스로 명쾌하게 해설
+   ③ [한눈에 보는 자격 요건 & 지원 혜택 표]: <div style="overflow-x:auto; width:100%; margin:25px 0;"> 안에 세련된 <table>로 일목요연 정리
+   ④ [담당자도 안 알려주는 신청 성공률 200% 높이는 실전 팁]: 필수 서류, 타이밍, 놓치기 쉬운 주의사항
+   ⑤ [따뜻한 응원과 마무리 메시지]: 삶을 격려하는 칼럼니스트의 진정성 있는 맺음말
+
+4. HTML 스타일링 가이드:
+   - 순수 HTML 시맨틱 태그(article, section, h2, h3, p, blockquote, table, div 등)를 사용하세요.
+   - 절대 ```html 같은 마크다운 코드블록 백틱으로 감싸지 마세요.
+   - 표(table)는 테두리, 헤더 배경(#f8fafc), 패딩이 깔끔한 모던 스타일을 적용하세요.
 
 {image_prompt}
 {internal_link_prompt}
 
 원문 정보:
-- 출처: {dept}
-- 원제: {title}
-- 내용: {content}
+- 제공 기관: {dept}
+- 원문 제목: {title}
+- 세부 내용: {content}
 
-출력 형식 (반드시 엄수):
-메타설명: [150자 이내의 검색 유도 요약]
+[반드시 준수할 출력 형식]:
+메타설명: [검색 결과 스니펫에 노출될 140자 이내의 매력적인 요약문]
 
-제목: [SEO 최적화된 매력적이고 공감 가는 제목]
+제목: [클릭을 부르는 매력적이고 세련된 헤드라인]
 
 본문:
-[순수 HTML 형식 블로그 본문 (코드 블록 절대 사용 금지) - 3000자 이상 풍부한 분량, 이모지 활용, 구조화된 레이아웃]
+<article style="font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size: 16px; line-height: 1.8; color: #2d3748; word-break: keep-all;">
+... (3,000자 이상의 풍부한 본문 내용) ...
+</article>
 
-태그: #태그1 #태그2 #태그3 #태그4 #태그5
+태그: #핵심태그1 #핵심태그2 #핵심태그3 #핵심태그4 #핵심태그5
 """
         return prompt
 
@@ -92,17 +104,17 @@ SEO 가이드:
 당신은 대중이 정말로 읽고 싶어 하는 흥미로운 이슈와 생활 혜택을 선별하는 베테랑 뉴스 에디터입니다.
 다음 소식이 일반 시민(직장인, 청년, 주부, 소상공인 등)이 직접 혜택을 받거나 클릭하고 싶어 하는 흥미로운 생활 밀착형 정보인지 1~10점으로 평가해 주세요.
 
-[❌ 절대 탈락 및 감점 대상 (1~4점 수준)]
+[❌ 절대 탈락 및 감점 대상 (1~6점 수준)]
 - 선거 현수막 작업 안전, 건설 현장 안전 수칙, 특정 산업 안전 지침 등 일반 시민과 무관한 작업장 안전 공고
-- 부처/지자체의 단순 해명자료, 설명자료, 내부 동정 (인사, 훈장 수여, 위원회 개최 등)
+- 부처/지자체의 단순 해명자료, 설명자료, 내부 동정 (인사, 훈장 수여, 위원회 개최, 업무협약식 체결 등)
 - 일반 시민이 이용할 수 없는 전문 기업/학술 고시, 행정 편의적 지침, 통계 조사 방식 변경 등
 - 클릭하고 싶은 생각이 전혀 들지 않는 관료적이고 재미없는 행정 공고
 
 [✅ 적극 선택 및 가점 대상 (8~10점 수준)]
 - 지원금, 환급금, 보조금, 교통비 절약(K-패스, 기후동행카드 등) 직접적인 돈이 되는 혜택
 - 가성비 주말 나들이, 무료 전시/축제, 휴가철 피서지, 맛집/문화 소식
-- 청년 전세/임차보증금 지원, 주택/부동산 실생활 꿀팁, 노후 자산 관리
-- 일상생활에서 바로 활용할 수 있는 건강, 생활 상식, 복지 서비스
+- 청년/신혼부부 전세/임차보증금 지원, 주택/부동산 실생활 꿀팁, 노후 자산 관리, 세금 절세
+- 일상생활에서 바로 활용할 수 있는 건강, 육아, 자녀 교육, 재취업, 복지 서비스
 
 [출력 형식]
 점수: [1에서 10 사이의 정수]
@@ -133,7 +145,72 @@ SEO 가이드:
             
         except Exception as e:
             logger.error(f"⚠️ 아이템 평가 중 에러 발생: {e}")
-            return {"score": 7, "reason": f"평가 오류 기본값 ({str(e)})"}
+            return {"score": 8, "reason": f"평가 오류 기본값 ({str(e)})"}
+
+    def _clean_content_headers(self, content: str) -> str:
+        """본문 상단에 유입된 메타설명, 제목, 코드블록 등 잔여 헤더 완벽 제거"""
+        if not content:
+            return ""
+            
+        cleaned = content.strip()
+        
+        # 1. 마크다운 코드 블록 제거
+        cleaned = re.sub(r"^```html\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"^```\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        
+        # 2. 본문 상단에 남아있는 '메타설명: ...', '제목: ...', '본문:' 패턴 완벽 제거
+        patterns = [
+            r"^\s*<div[^>]*class=['\"]meta-description['\"][^>]*>.*?</div>\s*",
+            r"^\s*메타설명\s*:\s*[^\n]+\n*",
+            r"^\s*메타\s*설명\s*:\s*[^\n]+\n*",
+            r"^\s*제목\s*:\s*[^\n]+\n*",
+            r"^\s*본문\s*:\s*\n*",
+            r"^\s*태그\s*:\s*[^\n]+\n*"
+        ]
+        
+        changed = True
+        while changed:
+            changed = False
+            for pat in patterns:
+                new_cleaned = re.sub(pat, "", cleaned, count=1, flags=re.IGNORECASE | re.DOTALL)
+                if new_cleaned != cleaned:
+                    cleaned = new_cleaned.strip()
+                    changed = True
+                    
+        # 3. 만약 본문 중에 <article> 태그가 존재한다면 <article> 앞쪽 잔여물 과감히 절단
+        article_pos = cleaned.find("<article")
+        if article_pos > 0 and article_pos < 600:
+            cleaned = cleaned[article_pos:]
+            
+        return cleaned.strip()
+
+    def _post_process_html(self, content: str) -> str:
+        """HTML 후처리: 반응형 표(Table) 가로 스크롤 래퍼 및 모바일 가독성 최적화"""
+        if not content:
+            return ""
+            
+        try:
+            soup = BeautifulSoup(content, "html.parser")
+            
+            # 모든 <table> 태그를 반응형 가로 스크롤 컨테이너로 감싸기
+            for table in soup.find_all("table"):
+                parent = table.parent
+                if parent and "overflow-x" in str(parent.get("style", "")):
+                    continue
+                    
+                wrapper = soup.new_tag("div", style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin: 25px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);")
+                table.wrap(wrapper)
+                
+                # 테이블 기본 모던 스타일 보강
+                table_style = table.get("style", "")
+                if "border-collapse" not in table_style:
+                    table["style"] = f"width: 100%; border-collapse: collapse; min-width: 500px; font-size: 15px; {table_style}"
+                    
+            return str(soup)
+        except Exception as e:
+            logger.warning(f"HTML 후처리 파싱 경고 (원문 유지): {e}")
+            return content
 
     def write_post(self, title: str, content: str, dept: str, url: str = None, images: list = None, recent_posts: list = None) -> dict:
         """Gemini API를 사용하여 고품질 포스팅 생성 및 원문 출처 링크 박스 부착"""
@@ -146,11 +223,14 @@ SEO 가이드:
             
             # 유저 요구사항: 본문 하단 원문 출처 링크 안내 박스 부착
             if post_data and post_data.get("content"):
+                post_data["content"] = self._clean_content_headers(post_data["content"])
+                post_data["content"] = self._post_process_html(post_data["content"])
+                
                 source_url = url or "https://www.korea.kr"
                 dept_name = dept or "정부 보도자료"
                 
                 source_box = f"""
-<div style="margin-top: 50px; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+<div style="margin-top: 50px; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
   <div style="display: flex; align-items: center; margin-bottom: 16px;">
     <span style="font-size: 24px; margin-right: 12px;">📢</span>
     <h4 style="margin: 0; font-size: 18px; color: #1e293b; font-weight: 700; word-break: keep-all;">공식 보도자료 및 상세 정보 안내</h4>
@@ -181,55 +261,98 @@ SEO 가이드:
             return None
 
     def _parse_response(self, text: str) -> dict:
-        """Gemini 응답 파싱 (스마트 정규식 및 폴백 메커니즘 적용)"""
+        """Gemini 응답 파싱 (마크다운 볼드, 헤더 기호 완벽 대응 및 무결점 정제)"""
         meta_desc = ""
         title = ""
         content = ""
         tags = []
 
-        meta_match = re.search(r"메타설명:\s*(.*?)(?=\n|제목:|$)", text, re.DOTALL)
+        if not text:
+            return {
+                "meta_description": "",
+                "title": "2026년 정부·서울시 주요 생활 정책 안내",
+                "content": "",
+                "tags": ["정부지원금", "서울시복지", "생활꿀팁", "정책정보"]
+            }
+
+        # 0. 마크다운 볼드 및 기호 정리용 텍스트 준비
+        # 1. 메타설명 추출 (**메타설명:**, [메타설명], 메타설명: 등 지원)
+        meta_match = re.search(r"[\*#\[\s]*메타\s*설명[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*제목|\n[\*#\[\s]*본문|\n<article|\n#|$)", text, re.DOTALL | re.IGNORECASE)
         if meta_match:
             meta_desc = meta_match.group(1).strip()
+            # 메타설명이 여러 줄로 넘어가지 않도록 첫 줄 취득 및 마크다운 기호 제거
+            meta_desc = meta_desc.split("\n")[0].strip().strip('*#`"\'')
 
-        title_match = re.search(r"제목:\s*(.*?)(?=\n|본문:|$)", text, re.DOTALL)
+        # 2. 제목 추출 (**제목:**, [제목], 제목: 등 지원)
+        title_match = re.search(r"[\*#\[\s]*제목[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*본문|\n<article|\n\n<|\n[\*#\[\s]*태그:|$)", text, re.DOTALL | re.IGNORECASE)
         if title_match:
-            title = title_match.group(1).strip()
-
-        content_match = re.search(r"본문:\s*(.*?)(?=\n태그:|$)", text, re.DOTALL)
-        if content_match:
-            content = content_match.group(1).strip()
+            raw_title = title_match.group(1).strip()
+            title = raw_title.split("\n")[0].strip()
         else:
-            if "본문:" in text:
+            # '제목:' 헤더가 없는 경우 <article> 이전의 텍스트 줄 중 탐색
+            article_pos = text.find("<article")
+            header_text = text[:article_pos] if article_pos != -1 else text
+            for line in header_text.split("\n"):
+                line_str = line.strip().strip('*#`"\'')
+                if line_str and not line_str.startswith("메타") and not line_str.startswith("태그") and not line_str.startswith("<") and not line_str.startswith("```"):
+                    title = line_str
+                    break
+
+        # 제목 정제: HTML 태그, 마크다운 기호, 불필요한 접두어('태그:', '제목:' 등) 제거
+        title = re.sub(r'^[\*#\[\s]*제목[\*#\]\s*:\s*', '', title, flags=re.IGNORECASE)
+        title = re.sub(r'^[\*#\[\s]*태그[\*#\]\s*:\s*.*', '', title, flags=re.IGNORECASE)
+        title = re.sub(r'<[^>]+>', '', title).strip().strip('\'"#*`')
+        title = re.sub(r'[\r\n\t]+', ' ', title).strip()
+
+        # 3. 본문 추출 (<article> 태그 우선 감지)
+        article_match = re.search(r"(<article.*?</article>)", text, re.DOTALL | re.IGNORECASE)
+        if article_match:
+            content = article_match.group(1).strip()
+        else:
+            content_match = re.search(r"[\*#\[\s]*본문[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*태그:|\n#|$)", text, re.DOTALL | re.IGNORECASE)
+            if content_match:
+                content = content_match.group(1).strip()
+            elif "본문:" in text:
                 parts = text.split("본문:", 1)
                 content = parts[1].strip()
                 if "\n태그:" in content:
                     content = content.split("\n태그:")[0].strip()
 
-        tags_match = re.search(r"태그:\s*(.*)", text)
+        # 4. 태그 추출 (**태그:**, [태그], 태그: 등 지원)
+        tags_match = re.search(r"[\*#\[\s]*태그[\*#\]\s*:\s*(.*)", text, re.IGNORECASE)
         if tags_match:
             raw_tags = tags_match.group(1).strip()
-            tags = [t.strip().lstrip('#') for t in raw_tags.split() if t.strip()]
-            # HTML 조각 및 무효 태그 필터링
-            tags = [
-                re.sub(r'<[^>]+>', '', t).strip()
-                for t in tags
-            ]
-            tags = [t for t in tags if len(t) >= 2 and '<' not in t and '>' not in t]
+            # 쉼표나 공백으로 분리
+            raw_tags = raw_tags.replace(',', ' ')
+            extracted_tags = [t.strip().lstrip('#*') for t in raw_tags.split() if t.strip()]
+            filtered_tags = []
+            for t in extracted_tags:
+                t_clean = re.sub(r'<[^>]+>', '', t).strip()
+                t_clean = re.sub(r'[^\w가-힣]', '', t_clean)
+                if not re.match(r'^\d+년|\d+월|\d+일|^[A-Z]\d+$', t_clean):
+                    if 2 <= len(t_clean) <= 15:
+                        filtered_tags.append(t_clean)
+            tags = filtered_tags[:5]
 
+        # 5. 본문 정리
         if content:
-            content = re.sub(r"^```html\s*", "", content, flags=re.IGNORECASE)
-            content = re.sub(r"^```\s*", "", content)
-            content = re.sub(r"\s*```$", "", content)
+            content = self._clean_content_headers(content)
 
+        # 6. 스마트 Fallback (본문이 비었거나 극도로 짧을 때)
         if not content or len(content) < 500:
             logger.warning("파싱 실패 또는 본문 길이 부족, 스마트 폴백 가동")
-            content = text
-            if meta_desc:
-                content = f"<div class='meta-description' style='display:none;'>{meta_desc}</div>\n" + content
+            content = self._clean_content_headers(text)
+
+        # 최종 기본값
+        if not title:
+            title = "2026년 정부·서울시 주요 생활 정책 안내"
+        if not tags:
+            tags = ["정부지원금", "서울시복지", "생활꿀팁", "정책정보"]
 
         return {
             "meta_description": meta_desc,
-            "title": title or "정부/서울시 주요 정책 안내",
+            "title": title,
             "content": content,
-            "tags": tags or ["정부정책", "서울시소식", "정책정보"]
+            "tags": tags
         }
+

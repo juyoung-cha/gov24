@@ -1,21 +1,34 @@
+"""
+token.pickle을 base64로 인코딩하여 콘솔 출력 및 token_base64.txt에 저장하는 스크립트
+GitHub Actions Secrets(TOKEN_PICKLE_BASE64)에 등록할 때 사용합니다.
+"""
 import base64
 import os
+import sys
 
-token_file = "token.pickle"
-output_file = "token_base64.txt"
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
-if not os.path.exists(token_file):
-    print(f"❌ '{token_file}' 파일이 존재하지 않습니다.")
-else:
-    with open(token_file, "rb") as f:
+def export_token():
+    if not os.path.exists("token.pickle"):
+        print("❌ token.pickle 파일이 없습니다.")
+        return
+
+    with open("token.pickle", "rb") as f:
         encoded = base64.b64encode(f.read()).decode("utf-8")
-    
-    with open(output_file, "w", encoding="utf-8") as f:
+
+    with open("token_base64.txt", "w", encoding="utf-8") as f:
         f.write(encoded)
-    
-    print(f"[SUCCESS] '{token_file}' encoding finished.")
-    print(f"[INFO] Result saved to '{output_file}'.")
-    print("GitHub Secret (TOKEN_PICKLE_BASE64) value:")
-    print("-" * 50)
-    print(encoded[:100] + "... (Total " + str(len(encoded)) + " chars)")
-    print("-" * 50)
+
+    print("=" * 60)
+    print("✅ token.pickle -> token_base64.txt 생성 완료")
+    print("GitHub Secrets (TOKEN_PICKLE_BASE64)에 아래 값을 등록하세요:")
+    print("=" * 60)
+    print(encoded[:50] + "..." + encoded[-50:])
+    print("=" * 60)
+
+if __name__ == "__main__":
+    export_token()

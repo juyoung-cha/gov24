@@ -318,68 +318,18 @@ def run_auto_blog(request=None):
                 # 성공 시 연속 실패 카운터 리셋
                 consecutive_quota_fails = 0
                 
-                # 날짜 라벨 생성 (상세 페이지의 정확한 발행일 사용 시도)
-                date_labels = []
-                pub_date_str = scraped.get("publish_date") or item.get("date")
-                logger.info(f"🔍 사용할 발행일 정보: {pub_date_str}")
+                # [라벨 체계 표준화] 사이드바 오염 방지를 위해 날짜형 태그 제거 및 핵심 카테고리/태그만 적용
+                primary_category = "서울시 정책뉴스" if item["dept"] == "서울시 정책뉴스" else "정부 정책 브리핑"
+                all_labels = [primary_category]
+                if item["dept"] != "서울시 정책뉴스" and item["dept"]:
+                    all_labels.append(item["dept"])
+                for tag in blog_post.get("tags", []):
+                    if tag not in all_labels:
+                        all_labels.append(tag)
                 
-                if pub_date_str:
-                    try:
-                        dt = None
-                        # 상세 페이지 형식: "2026.04.03. 11:36"
-                        try:
-                            clean_date = pub_date_str.split(" ")[0].rstrip(".")
-                            dt = datetime.strptime(clean_date, "%Y.%m.%d")
-                        except:
-                            pass
-                        
-                        if not dt:
-                            # RSS 형식: "Mon, 03 Feb 2026 10:00:00 +0900"
-                            try:
-                                dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z")
-                            except:
-                                pass
-                        
-                        if not dt:
-                            # 기타 형식: "2026-02-05"
-                            try:
-                                dt = datetime.strptime(pub_date_str[:10], "%Y-%m-%d")
-                            except:
-                                pass
-                        
-                        # 형식 2: "2026-02-03T10:00:00+09:00" (ISO 8601)
-                        if not dt:
-                            try:
-                                dt = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
-                            except:
-                                pass
-                        
-                        # 형식 3: "2026-02-03"
-                        if not dt:
-                            try:
-                                dt = datetime.strptime(pub_date_str[:10], "%Y-%m-%d")
-                            except:
-                                pass
-                        
-                        if dt:
-                            date_labels = [
-                                f"{dt.year}년",
-                                f"{dt.year}년 {dt.month}월",
-                                f"{dt.year}년 {dt.month}월 {dt.day}일"
-                            ]
-                            logger.info(f"날짜 라벨 생성: {date_labels}")
-                    except Exception as e:
-                        logger.warning(f"날짜 파싱 실패: {e}")
-                
-                # [FIX] 사용자 요청에 따른 카테고리(라벨) 체계 개편
-                if item["dept"] == "서울시 정책뉴스":
-                    all_labels = ["2. 서울시 정책 뉴스"] + blog_post["tags"] + date_labels
-                else:
-                    all_labels = ["1. 국가 정부 자료"] + blog_post["tags"] + date_labels
-                    if item["dept"] not in all_labels:
-                        all_labels.append(item["dept"])
-                
-                logger.info(f"📌 전송할 라벨: {all_labels}")
+                # 라벨 개수 최대 5개로 제한하여 사이드바 정돈
+                all_labels = all_labels[:5]
+                logger.info(f"📌 전송할 표준 라벨: {all_labels}")
                 
                 # [중복 방지] 블로그에 이미 유사한 제목의 글이 있는지 확인
                 is_duplicate = False

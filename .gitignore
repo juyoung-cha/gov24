@@ -30,3 +30,5 @@ __pycache__/
 # 백업
 backup_*/
 backups/
+archive_backup_*/
+*.bak

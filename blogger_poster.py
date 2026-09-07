@@ -221,25 +221,18 @@ class BloggerPoster:
             except Exception as bs_err:
                 logger.warning(f"BeautifulSoup HTML 밸런싱 실패 (계속 진행): {bs_err}")
 
-            # [SEO] meta description을 본문 상단에 삽입 (검색엔진 스니펫용)
-            seo_header = ""
-            if meta_description:
-                seo_header = (
-                    f'<div style="display:none;" class="meta-description">'
-                    f'{meta_description}</div>\n'
-                )
-            
-            # [SEO] JSON-LD 구조화 데이터 생성
-            jsonld_html = self._build_jsonld(title, content, meta_description, dept)
-            
-            # SEO 요소를 본문에 삽입
-            enhanced_content = seo_header + content + "\n" + jsonld_html
-            
+            # 제목 안전 정제 (HTML 태그 제거, 줄바꿈 및 제어문자, 양끝 따옴표 제거)
+            title = _re.sub(r'<[^>]+>', '', title)
+            title = _re.sub(r'[\r\n\t]+', ' ', title).strip().strip('"\'')
+            if len(title) > 100:
+                title = title[:97] + "..."
+
+            # 본문 정리 (불필요한 script 태그 차단하여 Blogger API 400 방어)
             post_data = {
                 'kind': 'blogger#post',
                 'blog': {'id': self.blog_id},
                 'title': title,
-                'content': enhanced_content
+                'content': content
             }
             
             # 라벨(태그) 추가 (Blogger 길이 제한 40자 준수 + HTML 조각 방어)
@@ -422,6 +415,49 @@ class BloggerPoster:
             return True
         except HttpError as e:
             logger.error(f"게시물 삭제 실패 ({post_id}): {e}")
+            return False
+
+    def list_pages(self) -> List[Dict]:
+        """정적 페이지 목록 조회"""
+        try:
+            result = self.service.pages().list(
+                blogId=self.blog_id,
+                fetchBodies=True
+            ).execute()
+            return result.get('items', [])
+        except HttpError as e:
+            logger.error(f"페이지 목록 조회 오류: {e}")
+            return []
+
+    def delete_page(self, page_id: str) -> bool:
+        """정적 페이지 삭제"""
+        try:
+            self.service.pages().delete(
+                blogId=self.blog_id,
+                pageId=page_id
+            ).execute()
+            logger.info(f"페이지 삭제 성공: {page_id}")
+            return True
+        except HttpError as e:
+            logger.error(f"페이지 삭제 실패 ({page_id}): {e}")
+            return False
+
+    def update_page(self, page_id: str, title: str, content: str) -> bool:
+        """정적 페이지 수정"""
+        try:
+            page_data = {
+                'title': title,
+                'content': content
+            }
+            self.service.pages().update(
+                blogId=self.blog_id,
+                pageId=page_id,
+                body=page_data
+            ).execute()
+            logger.info(f"페이지 수정 성공 (ID: {page_id})")
+            return True
+        except HttpError as e:
+            logger.error(f"Blogger 페이지 수정 오류 (ID: {page_id}): {e}")
             return False
 
 
