@@ -170,38 +170,19 @@ def run_auto_blog(request=None):
         
         logger.info(f"Step 2.2: 필터링 완료 (서울시: {len(seoul_items)}개, 기타: {len(other_items)}개)")
         
-        # [FIX] 공정 배분: 서울시와 정부정책에 각각 최소 슬롯 보장 (starvation 방지)
-        max_posts = config["settings"].get("max_posts_per_run", 10)
-        
-        if len(seoul_items) + len(other_items) > max_posts:
-            # 양쪽 모두 글이 있으면 공정하게 나눔
-            if seoul_items and other_items:
-                # 최소 1개씩 보장, 나머지는 교대 배분
-                other_quota = max(1, max_posts // 2)  # 정부정책 최소 절반
-                seoul_quota = max_posts - other_quota
-                
-                selected_seoul = seoul_items[:seoul_quota]
-                selected_other = other_items[:other_quota]
-                logger.info(f"⚖️ 공정 배분: 서울시 {len(selected_seoul)}개, 정부정책 {len(selected_other)}개 (max: {max_posts})")
-            elif seoul_items:
-                selected_seoul = seoul_items[:max_posts]
-                selected_other = []
-            else:
-                selected_seoul = []
-                selected_other = other_items[:max_posts]
-        else:
-            selected_seoul = seoul_items
-            selected_other = other_items
-        
-        # 교대 배치: 서울시 → 정부 → 서울시 → 정부 (다양한 포스팅)
-        new_items = []
-        for i in range(max(len(selected_seoul), len(selected_other))):
+        # [교대 배치] 서울시와 정부정책을 균형 있게 번갈아 배치하여 우선순위 큐 구성 (최대 30개 후보 탐색)
+        candidate_items = []
+        max_candidates = 30
+        for i in range(max(len(selected_other := other_items), len(selected_seoul := seoul_items))):
             if i < len(selected_other):
-                new_items.append(selected_other[i])
+                candidate_items.append(selected_other[i])
             if i < len(selected_seoul):
-                new_items.append(selected_seoul[i])
+                candidate_items.append(selected_seoul[i])
+            if len(candidate_items) >= max_candidates:
+                break
         
-        logger.info(f"Step 2.3: 최종 처리 대상: {len(new_items)}개")
+        new_items = candidate_items
+        logger.info(f"Step 2.3: 최종 평가 탐색 대상: 총 {len(new_items)}개 후보 대기 중")
         
         # 3. 각 항목 처리
         posted_count = 0

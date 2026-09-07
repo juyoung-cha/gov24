@@ -261,7 +261,7 @@ class BlogWriter:
             return None
 
     def _parse_response(self, text: str) -> dict:
-        """Gemini 응답 파싱 (마크다운 볼드, 헤더 기호 완벽 대응 및 무결점 정제)"""
+        """Gemini 응답 파싱 (마크다운 볼드, 대괄호, 헤더 기호 완벽 대응 및 무결점 정제)"""
         meta_desc = ""
         title = ""
         content = ""
@@ -275,79 +275,84 @@ class BlogWriter:
                 "tags": ["정부지원금", "서울시복지", "생활꿀팁", "정책정보"]
             }
 
-        # 0. 마크다운 볼드 및 기호 정리용 텍스트 준비
-        # 1. 메타설명 추출 (**메타설명:**, [메타설명], 메타설명: 등 지원)
-        meta_match = re.search(r"[\*#\[\s]*메타\s*설명[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*제목|\n[\*#\[\s]*본문|\n<article|\n#|$)", text, re.DOTALL | re.IGNORECASE)
-        if meta_match:
-            meta_desc = meta_match.group(1).strip()
-            # 메타설명이 여러 줄로 넘어가지 않도록 첫 줄 취득 및 마크다운 기호 제거
-            meta_desc = meta_desc.split("\n")[0].strip().strip('*#`"\'')
+        # 줄 단위 정밀 파싱 (정규식 에러 위험 원천 차단)
+        lines = text.split("\n")
+        in_content = False
+        content_lines = []
 
-        # 2. 제목 추출 (**제목:**, [제목], 제목: 등 지원)
-        title_match = re.search(r"[\*#\[\s]*제목[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*본문|\n<article|\n\n<|\n[\*#\[\s]*태그:|$)", text, re.DOTALL | re.IGNORECASE)
-        if title_match:
-            raw_title = title_match.group(1).strip()
-            title = raw_title.split("\n")[0].strip()
-        else:
-            # '제목:' 헤더가 없는 경우 <article> 이전의 텍스트 줄 중 탐색
-            article_pos = text.find("<article")
-            header_text = text[:article_pos] if article_pos != -1 else text
-            for line in header_text.split("\n"):
-                line_str = line.strip().strip('*#`"\'')
-                if line_str and not line_str.startswith("메타") and not line_str.startswith("태그") and not line_str.startswith("<") and not line_str.startswith("```"):
-                    title = line_str
-                    break
+        for line in lines:
+            line_strip = line.strip()
+            # 헤더 태그 정리 (**, ##, [], 공백 등 제거된 순수 텍스트 키워드 검사)
+            clean_key = re.sub(r'[\*\#\[\]\_\`]', '', line_strip).strip()
 
-        # 제목 정제: HTML 태그, 마크다운 기호, 불필요한 접두어('태그:', '제목:' 등) 제거
-        title = re.sub(r'^[\*#\[\s]*제목[\*#\]\s*:\s*', '', title, flags=re.IGNORECASE)
-        title = re.sub(r'^[\*#\[\s]*태그[\*#\]\s*:\s*.*', '', title, flags=re.IGNORECASE)
-        title = re.sub(r'<[^>]+>', '', title).strip().strip('\'"#*`')
-        title = re.sub(r'[\r\n\t]+', ' ', title).strip()
+            # 1. 메타설명 탐색
+            if clean_key.startswith("메타설명:") or clean_key.startswith("메타 설명:"):
+                parts = clean_key.split(":", 1)
+                if len(parts) > 1 and parts[1].strip():
+                    meta_desc = parts[1].strip().strip('"\'')
+                continue
 
-        # 3. 본문 추출 (<article> 태그 우선 감지)
+            # 2. 제목 탐색
+            if clean_key.startswith("제목:") or clean_key.startswith("제목 :"):
+                parts = clean_key.split(":", 1)
+                if len(parts) > 1 and parts[1].strip():
+                    title = parts[1].strip().strip('"\'')
+                continue
+
+            # 3. 태그 탐색
+            if clean_key.startswith("태그:") or clean_key.startswith("태그 :") or clean_key.startswith("해시태그:"):
+                parts = clean_key.split(":", 1)
+                if len(parts) > 1 and parts[1].strip():
+                    raw_tags = parts[1].strip().replace(',', ' ')
+                    extracted_tags = [t.strip().lstrip('#*') for t in raw_tags.split() if t.strip()]
+                    for t in extracted_tags:
+                        t_clean = re.sub(r'<[^>]+>', '', t).strip()
+                        t_clean = re.sub(r'[^\w가-힣]', '', t_clean)
+                        if not re.match(r'^\d+년|\d+월|\d+일|^[A-Z]\d+$', t_clean):
+                            if 2 <= len(t_clean) <= 15 and t_clean not in tags:
+                                tags.append(t_clean)
+                continue
+
+        # 4. 본문 추출 (<article> 태그 우선, 없으면 본문: 하위)
         article_match = re.search(r"(<article.*?</article>)", text, re.DOTALL | re.IGNORECASE)
         if article_match:
             content = article_match.group(1).strip()
         else:
-            content_match = re.search(r"[\*#\[\s]*본문[\*#\]\s*:\s*(.*?)(?=\n[\*#\[\s]*태그:|\n#|$)", text, re.DOTALL | re.IGNORECASE)
-            if content_match:
-                content = content_match.group(1).strip()
-            elif "본문:" in text:
-                parts = text.split("본문:", 1)
-                content = parts[1].strip()
-                if "\n태그:" in content:
-                    content = content.split("\n태그:")[0].strip()
+            if "본문:" in text or "본문 :" in text:
+                parts = re.split(r'본문\s*:', text, 1)
+                raw_c = parts[1].strip()
+                # 뒤쪽에 태그나 마크다운 블록이 오면 분리
+                for stop_word in ["\n태그:", "\n태그 :", "\n#태그", "\n**태그"]:
+                    if stop_word in raw_c:
+                        raw_c = raw_c.split(stop_word)[0].strip()
+                content = raw_c
+            else:
+                content = text
 
-        # 4. 태그 추출 (**태그:**, [태그], 태그: 등 지원)
-        tags_match = re.search(r"[\*#\[\s]*태그[\*#\]\s*:\s*(.*)", text, re.IGNORECASE)
-        if tags_match:
-            raw_tags = tags_match.group(1).strip()
-            # 쉼표나 공백으로 분리
-            raw_tags = raw_tags.replace(',', ' ')
-            extracted_tags = [t.strip().lstrip('#*') for t in raw_tags.split() if t.strip()]
-            filtered_tags = []
-            for t in extracted_tags:
-                t_clean = re.sub(r'<[^>]+>', '', t).strip()
-                t_clean = re.sub(r'[^\w가-힣]', '', t_clean)
-                if not re.match(r'^\d+년|\d+월|\d+일|^[A-Z]\d+$', t_clean):
-                    if 2 <= len(t_clean) <= 15:
-                        filtered_tags.append(t_clean)
-            tags = filtered_tags[:5]
+        # 5. 제목 Fallback (헤더 키워드를 못 찾았을 때 <article> 이전의 첫 번째 의미 있는 텍스트 추출)
+        if not title:
+            article_pos = text.find("<article")
+            header_text = text[:article_pos] if article_pos != -1 else text
+            for line in header_text.split("\n"):
+                clean_l = re.sub(r'[\*\#\[\]\_\`]', '', line.strip()).strip()
+                if clean_l and not clean_l.startswith("메타") and not clean_l.startswith("태그") and not clean_l.startswith("<"):
+                    title = clean_l
+                    break
 
-        # 5. 본문 정리
+        # 제목 정제: HTML 태그 및 따옴표 제거
+        title = re.sub(r'<[^>]+>', '', title).strip().strip('\'"#*`')
+        title = re.sub(r'[\r\n\t]+', ' ', title).strip()
+
+        # 6. 본문 정리
         if content:
             content = self._clean_content_headers(content)
 
-        # 6. 스마트 Fallback (본문이 비었거나 극도로 짧을 때)
-        if not content or len(content) < 500:
-            logger.warning("파싱 실패 또는 본문 길이 부족, 스마트 폴백 가동")
-            content = self._clean_content_headers(text)
-
-        # 최종 기본값
+        # 7. 기본값 보정
         if not title:
             title = "2026년 정부·서울시 주요 생활 정책 안내"
         if not tags:
             tags = ["정부지원금", "서울시복지", "생활꿀팁", "정책정보"]
+        tags = tags[:5]
 
         return {
             "meta_description": meta_desc,

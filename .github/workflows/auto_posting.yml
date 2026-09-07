@@ -57,5 +57,9 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add seen.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "auto: update seen.json [skip ci]" && git push origin HEAD:main)
+          if ! git diff --quiet seen.json || ! git diff --staged --quiet seen.json; then
+            git add seen.json
+            git pull --rebase origin main || true
+            git commit -m "auto: update seen.json [skip ci]" || true
+            git push origin HEAD:main || true
+          fi
