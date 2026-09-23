@@ -32,3 +32,4 @@ backup_*/
 backups/
 archive_backup_*/
 *.bak
+*.zip
