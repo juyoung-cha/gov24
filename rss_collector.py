@@ -3,6 +3,7 @@ RSS 피드 수집 및 파싱 모듈
 정부 부처 RSS 피드에서 새로운 보도자료/정책 정보를 수집합니다.
 """
 import requests
+import re
 from bs4 import BeautifulSoup
 import logging
 from typing import List, Dict, Set
@@ -139,6 +140,10 @@ class RSSCollector:
                                 link = ("https://mediahub.seoul.go.kr" if "mediahub" in link else "https://www.seoul.go.kr") + link
                             
                             date_str = date_tag.get_text(strip=True).replace("발행일", "").strip() if date_tag else ""
+                            if not date_str:
+                                date_match = re.search(r'발행일.*?(\d{4}[-.]\d{2}[-.]\d{2})', li.get_text())
+                                if date_match:
+                                    date_str = date_match.group(1).replace('.', '-')
                             
                             # 날짜 필터링 (2025-06-01 이후 기사만 수집)
                             if date_str:

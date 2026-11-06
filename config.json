@@ -1,6 +1,6 @@
 {
     "rss_feeds": {
-        "고용노동부": "https://www.moel.go.kr/rss/policy.do",
+        "고용노동부": "https://www.moel.go.kr/rss/notice.do",
         "보건복지부": "https://www.mohw.go.kr/rss/board.es?mid=a10501010000&bid=0003&cg_code=C01",
         "seoul_policy": "https://www.seoul.go.kr/seoul/mediahub.do?schAgeVals=&schTargetVals=&schBunyaVals=&schType=TAG&schValue="
     },
